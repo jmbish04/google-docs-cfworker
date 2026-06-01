@@ -1,6 +1,6 @@
 // MCP Protocol Handler
 import { Context } from 'hono';
-import { jsonRpcRequestSchema, JsonRpcRequest, JsonRpcResponse, JsonRpcErrorCode, McpContent } from './schemas';
+import { JsonRpcRequest, JsonRpcResponse, JsonRpcErrorCode, McpContent } from './schemas';
 import { mcpTools } from './tools';
 import { GoogleApiClient } from '../services/GoogleApiClient';
 
@@ -141,10 +141,14 @@ async function executeWorkspaceTool(
         const previousParents = ((fileData as any).parents || []).join(',');
 
         // Move by adding new parent and removing old parents
-        const data = await client.drive_update(fileId, {
-          addParents: newParentId,
-          removeParents: previousParents,
-        });
+        const data = await client.drive_update(
+          fileId,
+          {}, // Empty metadata body
+          {
+            addParents: newParentId,
+            removeParents: previousParents,
+          }
+        );
 
         return [{
           type: 'text',

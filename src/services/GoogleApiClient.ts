@@ -141,8 +141,17 @@ export class GoogleApiClient {
     return response.json();
   }
 
-  async drive_update(fileId: string, metadata: any): Promise<any> {
-    const response = await fetch(`${this.baseUrls.drive}/files/${fileId}`, {
+  async drive_update(fileId: string, metadata: any, queryParams?: Record<string, string>): Promise<any> {
+    const url = new URL(`${this.baseUrls.drive}/files/${fileId}`);
+
+    // Add query parameters if provided (e.g., addParents, removeParents)
+    if (queryParams) {
+      Object.entries(queryParams).forEach(([key, value]) => {
+        url.searchParams.set(key, value);
+      });
+    }
+
+    const response = await fetch(url.toString(), {
       method: 'PATCH',
       headers: this.getHeaders(),
       body: JSON.stringify(metadata),

@@ -73,7 +73,7 @@ export async function handleWebSocket(c: Context): Promise<Response> {
   });
 
   server.addEventListener('close', () => {
-    console.log('WebSocket connection closed');
+    // WebSocket connection closed
   });
 
   server.addEventListener('error', (event: Event) => {
