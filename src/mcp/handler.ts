@@ -1,6 +1,6 @@
 // MCP Protocol Handler
 import { Context } from 'hono';
-import { JsonRpcRequest, JsonRpcResponse, JsonRpcErrorCode, McpContent } from './schemas';
+import { jsonRpcRequestSchema, JsonRpcRequest, JsonRpcResponse, JsonRpcErrorCode, McpContent } from './schemas';
 import { mcpTools } from './tools';
 import { GoogleApiClient } from '../services/GoogleApiClient';
 
