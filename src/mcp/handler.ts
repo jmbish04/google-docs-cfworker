@@ -62,8 +62,8 @@ async function executeWorkspaceTool(
         const deleteRequests = [{
           deleteContentRange: {
             range: {
-              startIndex: range?.startIndex || 1,
-              endIndex: range?.endIndex || endIndex,
+              startIndex: 1,
+              endIndex,
               ...range,
             },
           },
