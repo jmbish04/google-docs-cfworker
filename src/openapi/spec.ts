@@ -30,11 +30,35 @@ export function generateOpenAPISpec(c: Context): OpenAPISpec {
     info: {
       title: 'Google Workspace MCP API',
       description: `
-This API provides three interfaces for interacting with Google Workspace:
+This API provides three interfaces for interacting with Google Workspace (Docs, Drive, Sheets):
 
 1. **REST API** - Standard HTTP endpoints for Google Docs operations
 2. **MCP Protocol** - Model Context Protocol (JSON-RPC 2.0) for AI agents
 3. **WebSocket API** - Real-time MCP protocol over WebSocket
+
+## Available MCP Tools
+
+### Google Docs (5 tools)
+- **google_docs_structure** - Inspect document structure
+- **google_docs_batch_update** - Apply batch updates
+- **google_docs_markdown_insert** - Insert markdown content
+- **google_docs_delete_content_range** - Delete content ranges
+- **google_docs_create** - Create new documents
+
+### Google Drive (5 tools)
+- **google_drive_search** - Search for files with queries
+- **google_drive_get_file** - Get file metadata
+- **google_drive_create_folder** - Create folders
+- **google_drive_move_file** - Move files/folders
+- **google_drive_delete_file** - Delete files/folders
+
+### Google Sheets (6 tools)
+- **google_sheets_get** - Get spreadsheet metadata
+- **google_sheets_get_values** - Get cell values
+- **google_sheets_update_values** - Update cell values
+- **google_sheets_append_values** - Append rows
+- **google_sheets_create** - Create new spreadsheets
+- **google_sheets_batch_update** - Apply batch updates
 
 All endpoints require OAuth2 authentication with Google.
       `.trim(),

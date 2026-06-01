@@ -127,11 +127,27 @@ ws.send(JSON.stringify({
 
 ## 🛠️ Available MCP Tools
 
-1. **google_docs_structure** - Inspect document structure
-2. **google_docs_batch_update** - Apply multiple updates
-3. **google_docs_markdown_insert** - Insert markdown content
+### Google Docs (5 tools)
+1. **google_docs_structure** - Inspect document structure and metadata
+2. **google_docs_batch_update** - Apply multiple updates in a single operation
+3. **google_docs_markdown_insert** - Insert markdown-formatted content
 4. **google_docs_delete_content_range** - Delete content ranges
-5. **google_docs_create** - Create new documents
+5. **google_docs_create** - Create new Google Docs documents
+
+### Google Drive (5 tools)
+6. **google_drive_search** - Search for files using query syntax
+7. **google_drive_get_file** - Get file or folder metadata
+8. **google_drive_create_folder** - Create new folders
+9. **google_drive_move_file** - Move files or folders to different locations
+10. **google_drive_delete_file** - Delete files or folders (moves to trash)
+
+### Google Sheets (6 tools)
+11. **google_sheets_get** - Get spreadsheet metadata and structure
+12. **google_sheets_get_values** - Read cell values from ranges
+13. **google_sheets_update_values** - Update cell values in ranges
+14. **google_sheets_append_values** - Append rows to tables
+15. **google_sheets_create** - Create new spreadsheets
+16. **google_sheets_batch_update** - Apply multiple formatting/structure updates
 
 See [MCP Documentation](src/mcp/README.md) for detailed usage.
 
@@ -139,26 +155,28 @@ See [MCP Documentation](src/mcp/README.md) for detailed usage.
 
 ```
 src/
-├── index.ts              # Main Hono router
-├── auth.ts               # OAuth2 authentication
+├── index.ts              # Main Hono router with all endpoints
+├── auth.ts               # OAuth2 authentication flow
+├── services/
+│   └── GoogleApiClient.ts # Unified Google API client (Docs, Drive, Sheets)
 ├── docs/
-│   ├── routes.ts         # REST API routes
+│   ├── routes.ts         # REST API routes for Docs
 │   └── apis/             # API implementations
 ├── mcp/
-│   ├── schemas.ts        # JSON-RPC 2.0 schemas
-│   ├── tools.ts          # MCP tool definitions
-│   ├── handler.ts        # MCP request handler
-│   └── websocket.ts      # WebSocket support
+│   ├── schemas.ts        # JSON-RPC 2.0 Zod schemas
+│   ├── tools.ts          # All 16 MCP tool definitions
+│   ├── handler.ts        # MCP request handler for all tools
+│   └── websocket.ts      # WebSocket protocol support
 ├── openapi/
-│   ├── spec.ts           # Dynamic OpenAPI generator
-│   ├── scalar.ts         # Scalar UI
-│   └── swagger-ui.ts     # Swagger UI
+│   ├── spec.ts           # Dynamic OpenAPI 3.1 generator
+│   ├── scalar.ts         # Scalar API documentation UI
+│   └── swagger-ui.ts     # Swagger UI (legacy)
 └── utils/                # Utility functions
 ```
 
 ## 📖 Examples
 
-### Create a Document with Markdown
+### Google Docs: Create a Document
 
 ```bash
 curl -X POST https://your-worker.workers.dev/mcp \
@@ -177,14 +195,48 @@ curl -X POST https://your-worker.workers.dev/mcp \
   }'
 ```
 
-### Insert Markdown Content
+### Google Drive: Search for Files
 
 ```bash
-curl -X POST https://your-worker.workers.dev/v1/documents/{docId}/markdown/insert \
+curl -X POST https://your-worker.workers.dev/mcp \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
-    "markdown": "IyBIZWxsbyBXb3JsZAoKVGhpcyBpcyAqKmJvbGQqKiB0ZXh0Lg=="
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "tools/call",
+    "params": {
+      "name": "google_drive_search",
+      "arguments": {
+        "query": "name contains '\''report'\'' and mimeType='\''application/pdf'\''",
+        "pageSize": 10
+      }
+    }
+  }'
+```
+
+### Google Sheets: Update Values
+
+```bash
+curl -X POST https://your-worker.workers.dev/mcp \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 3,
+    "method": "tools/call",
+    "params": {
+      "name": "google_sheets_update_values",
+      "arguments": {
+        "spreadsheetId": "YOUR_SHEET_ID",
+        "range": "Sheet1!A1:C3",
+        "values": [
+          ["Name", "Age", "City"],
+          ["John", 30, "New York"],
+          ["Jane", 25, "London"]
+        ]
+      }
+    }
   }'
 ```
 
