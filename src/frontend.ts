@@ -33,12 +33,20 @@ function nav(active: ActivePage): string {
     .join("");
 }
 
-function shell(title: string, active: ActivePage, body: string, script = "", mainClass = ""): string {
+function shell(
+  title: string,
+  active: ActivePage,
+  body: string,
+  script = "",
+  mainClass = "",
+  showHeader = true
+): string {
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <title>${escapeHtml(title)}</title>
   <style>
     :root {
@@ -133,10 +141,20 @@ function shell(title: string, active: ActivePage, body: string, script = "", mai
     }
 
     .chat-main {
-      width: min(920px, calc(100vw - 32px));
+      width: min(1180px, calc(100vw - 32px));
       min-height: calc(100vh - 64px);
       display: grid;
       padding: 0;
+    }
+
+    .chat-main-full {
+      width: 100%;
+      min-height: 100vh;
+    }
+
+    .chat-main-full .chat-page,
+    .chat-main-full #assistant-root {
+      min-height: 100vh;
     }
 
     .chat-page {
@@ -323,7 +341,7 @@ function shell(title: string, active: ActivePage, body: string, script = "", mai
       .header-inner { align-items: flex-start; flex-direction: column; padding: 14px 0; }
       .nav { justify-content: flex-start; }
       .doc-layout { grid-template-columns: 1fr; }
-      .chat-main { width: min(100vw - 20px, 920px); }
+      .chat-main { width: min(100vw - 20px, 1180px); }
       .toc { position: static; }
       .grid, .tools-list, .metrics { grid-template-columns: 1fr; }
       h1 { font-size: 44px; }
@@ -332,7 +350,7 @@ function shell(title: string, active: ActivePage, body: string, script = "", mai
   </style>
 </head>
 <body>
-  <header class="site-header">
+  ${showHeader ? `<header class="site-header">
     <div class="header-inner">
       <a class="brand" href="/">
         <strong>Google Workspace MCP</strong>
@@ -340,7 +358,7 @@ function shell(title: string, active: ActivePage, body: string, script = "", mai
       </a>
       <nav class="nav" aria-label="Primary navigation">${nav(active)}</nav>
     </div>
-  </header>
+  </header>` : ""}
   <main${mainClass ? ` class="${mainClass}"` : ""}>${body}</main>
   ${script}
 </body>
@@ -363,7 +381,8 @@ export function serveLanding(c: Context): Response {
         </div>
       </section>`,
       assistantMountScript(),
-      "chat-main"
+      "chat-main chat-main-full",
+      false
     )
   );
 }

@@ -49389,8 +49389,33 @@ var __iconNode10 = [
 ];
 var FileText = createLucideIcon("file-text", __iconNode10);
 
-// node_modules/lucide-react/dist/esm/icons/paperclip.mjs
+// node_modules/lucide-react/dist/esm/icons/key-round.mjs
 var __iconNode11 = [
+  [
+    "path",
+    {
+      d: "M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z",
+      key: "1s6t7t"
+    }
+  ],
+  ["circle", { cx: "16.5", cy: "7.5", r: ".5", fill: "currentColor", key: "w0ekpg" }]
+];
+var KeyRound = createLucideIcon("key-round", __iconNode11);
+
+// node_modules/lucide-react/dist/esm/icons/message-square.mjs
+var __iconNode12 = [
+  [
+    "path",
+    {
+      d: "M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z",
+      key: "18887p"
+    }
+  ]
+];
+var MessageSquare = createLucideIcon("message-square", __iconNode12);
+
+// node_modules/lucide-react/dist/esm/icons/paperclip.mjs
+var __iconNode13 = [
   [
     "path",
     {
@@ -49399,10 +49424,10 @@ var __iconNode11 = [
     }
   ]
 ];
-var Paperclip = createLucideIcon("paperclip", __iconNode11);
+var Paperclip = createLucideIcon("paperclip", __iconNode13);
 
 // node_modules/lucide-react/dist/esm/icons/pencil.mjs
-var __iconNode12 = [
+var __iconNode14 = [
   [
     "path",
     {
@@ -49412,22 +49437,29 @@ var __iconNode12 = [
   ],
   ["path", { d: "m15 5 4 4", key: "1mk7zo" }]
 ];
-var Pencil = createLucideIcon("pencil", __iconNode12);
+var Pencil = createLucideIcon("pencil", __iconNode14);
+
+// node_modules/lucide-react/dist/esm/icons/plus.mjs
+var __iconNode15 = [
+  ["path", { d: "M5 12h14", key: "1ays0h" }],
+  ["path", { d: "M12 5v14", key: "s699le" }]
+];
+var Plus = createLucideIcon("plus", __iconNode15);
 
 // node_modules/lucide-react/dist/esm/icons/refresh-cw.mjs
-var __iconNode13 = [
+var __iconNode16 = [
   ["path", { d: "M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8", key: "v9h5vc" }],
   ["path", { d: "M21 3v5h-5", key: "1q7to0" }],
   ["path", { d: "M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16", key: "3uifl3" }],
   ["path", { d: "M8 16H3v5", key: "1cv678" }]
 ];
-var RefreshCw = createLucideIcon("refresh-cw", __iconNode13);
+var RefreshCw = createLucideIcon("refresh-cw", __iconNode16);
 
 // node_modules/lucide-react/dist/esm/icons/square.mjs
-var __iconNode14 = [
+var __iconNode17 = [
   ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", key: "afitv7" }]
 ];
-var Square = createLucideIcon("square", __iconNode14);
+var Square = createLucideIcon("square", __iconNode17);
 
 // node_modules/ccount/index.js
 function ccount(value, character) {
@@ -52485,21 +52517,32 @@ var import_client = __toESM(require_client());
 var import_jsx_runtime82 = __toESM(require_jsx_runtime());
 var suggestions = [
   {
-    title: "Install the MCP server",
-    label: "MCP setup",
-    prompt: "How do I install this MCP server?"
+    title: "Create a new doc",
+    label: "Docs",
+    prompt: "Create a Google Doc titled Project Notes and add a short outline."
   },
   {
-    title: "OpenAPI and Scalar routes",
-    label: "API docs",
-    prompt: "Show me the OpenAPI and Scalar routes."
+    title: "Search Drive",
+    label: "Drive",
+    prompt: "Search my Drive for recently modified planning documents."
   },
   {
-    title: "Available Google Docs tools",
-    label: "Tool surface",
-    prompt: "Which Google Docs tools are available?"
+    title: "Edit a document",
+    label: "Docs",
+    prompt: "Help me update an existing Google Doc with markdown content."
   }
 ];
+var API_KEY_COOKIE_NAME = "worker_api_key";
+var API_KEY_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+var AssistantApiError = class extends Error {
+  constructor(message, status, body = {}) {
+    super(message);
+    this.status = status;
+    this.body = body;
+  }
+  status;
+  body;
+};
 function cn(...classes) {
   return classes.filter(Boolean).join(" ");
 }
@@ -52515,35 +52558,171 @@ function textMessage(role, text7) {
     ...role === "assistant" ? { status: { type: "complete", reason: "stop" } } : {}
   };
 }
+function cookieValue(name2) {
+  const escapedName = name2.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = document.cookie.match(new RegExp(`(?:^|; )${escapedName}=([^;]*)`));
+  if (!match) {
+    return "";
+  }
+  try {
+    return decodeURIComponent(match[1]);
+  } catch (error) {
+    return match[1];
+  }
+}
+function hasStoredApiKey() {
+  return cookieValue(API_KEY_COOKIE_NAME).length > 0;
+}
+function storeApiKeyCookie(value) {
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${API_KEY_COOKIE_NAME}=${encodeURIComponent(value)}; Path=/; Max-Age=${API_KEY_COOKIE_MAX_AGE_SECONDS}; SameSite=Strict${secure}`;
+}
+function clearStoredApiKeyCookie() {
+  document.cookie = `${API_KEY_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Strict`;
+}
 function messageText(message) {
   return message.content.map((part) => part.type === "text" ? part.text : "").join("").trim();
 }
-async function previewReply(text7, signal) {
-  const response = await fetch("/assistant/preview", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ message: text7 }),
-    signal
-  });
-  if (!response.ok) {
-    throw new Error(`Assistant preview failed with ${response.status}`);
-  }
-  const body = await response.json();
-  return body.reply?.trim() || "I could not generate a preview response.";
+function toThreadMessage(message) {
+  return {
+    id: message.id,
+    role: message.role === "assistant" ? "assistant" : "user",
+    createdAt: new Date(message.createdAt),
+    content: [{ type: "text", text: message.content }],
+    ...message.role === "assistant" ? { status: { type: "complete", reason: "stop" } } : {}
+  };
 }
-function AssistantUiRuntimeProvider({ children }) {
+function sortThreads(threads) {
+  return [...threads].sort(
+    (first, second) => new Date(second.updatedAt).getTime() - new Date(first.updatedAt).getTime()
+  );
+}
+function mergeThread(threads, thread) {
+  return sortThreads([thread, ...threads.filter((item) => item.id !== thread.id)]);
+}
+async function assistantFetch(path2, init = {}) {
+  const headers = new Headers(init.headers);
+  if (init.body && !headers.has("content-type")) {
+    headers.set("content-type", "application/json");
+  }
+  const response = await fetch(path2, { ...init, credentials: "same-origin", headers });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new AssistantApiError(body.error || `Assistant request failed with ${response.status}`, response.status, body);
+  }
+  return body;
+}
+function AssistantWorkspace() {
+  const [apiKeyConfigured, setApiKeyConfigured] = (0, import_react141.useState)(hasStoredApiKey);
+  const [apiKeyDraft, setApiKeyDraft] = (0, import_react141.useState)("");
+  const [authOpen, setAuthOpen] = (0, import_react141.useState)(() => !hasStoredApiKey());
+  const [threads, setThreads] = (0, import_react141.useState)([]);
+  const [activeThreadId, setActiveThreadId] = (0, import_react141.useState)(null);
   const [messages, setMessages] = (0, import_react141.useState)([]);
   const [isRunning, setIsRunning] = (0, import_react141.useState)(false);
+  const [loadError, setLoadError] = (0, import_react141.useState)(null);
   const abortRef = (0, import_react141.useRef)(null);
   const suggestionsAui = useAui({ suggestions: Suggestions(suggestions) }, { parent: null });
+  const handleAuthError = (0, import_react141.useCallback)((error) => {
+    const message = error instanceof AssistantApiError ? error.message : "";
+    const isAuthError = error instanceof AssistantApiError && (error.status === 401 || /worker[_\s-]?api[_\s-]?key|WORKER_API_KEY/i.test(message));
+    if (isAuthError) {
+      clearStoredApiKeyCookie();
+      setApiKeyConfigured(false);
+      setAuthOpen(true);
+      setLoadError(error.message);
+      return true;
+    }
+    return false;
+  }, []);
+  const createThread = (0, import_react141.useCallback)(async () => {
+    if (!apiKeyConfigured) {
+      setAuthOpen(true);
+      throw new Error("Worker API key required");
+    }
+    const response = await assistantFetch("/assistant/threads", {
+      method: "POST",
+      body: JSON.stringify({ title: "New thread" })
+    });
+    setThreads((current) => mergeThread(current, response.thread));
+    setActiveThreadId(response.thread.id);
+    setMessages([]);
+    return response.thread;
+  }, [apiKeyConfigured]);
+  (0, import_react141.useEffect)(() => {
+    if (!apiKeyConfigured) {
+      return;
+    }
+    let cancelled = false;
+    async function loadThreads() {
+      try {
+        setLoadError(null);
+        const response = await assistantFetch("/assistant/threads");
+        let nextThreads = response.threads;
+        if (nextThreads.length === 0) {
+          const created = await assistantFetch("/assistant/threads", {
+            method: "POST",
+            body: JSON.stringify({ title: "New thread" })
+          });
+          nextThreads = [created.thread];
+        }
+        if (!cancelled) {
+          setThreads(sortThreads(nextThreads));
+          setActiveThreadId((current) => current ?? nextThreads[0]?.id ?? null);
+        }
+      } catch (error) {
+        if (!cancelled && !handleAuthError(error)) {
+          setLoadError(error.message);
+        }
+      }
+    }
+    void loadThreads();
+    return () => {
+      cancelled = true;
+    };
+  }, [apiKeyConfigured, handleAuthError]);
+  (0, import_react141.useEffect)(() => {
+    if (!apiKeyConfigured || !activeThreadId) {
+      setMessages([]);
+      return;
+    }
+    const threadId = activeThreadId;
+    let cancelled = false;
+    async function loadMessages() {
+      try {
+        setLoadError(null);
+        const response = await assistantFetch(
+          `/assistant/threads/${encodeURIComponent(threadId)}/messages`
+        );
+        if (!cancelled) {
+          setThreads((current) => mergeThread(current, response.thread));
+          setMessages(response.messages.map(toThreadMessage));
+        }
+      } catch (error) {
+        if (!cancelled && !handleAuthError(error)) {
+          setLoadError(error.message);
+        }
+      }
+    }
+    void loadMessages();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeThreadId, apiKeyConfigured, handleAuthError]);
   const onNew = (0, import_react141.useCallback)(async (message) => {
     const input = messageText(message);
     if (!input) {
       return;
     }
+    if (!apiKeyConfigured) {
+      setAuthOpen(true);
+      return;
+    }
     const controller = new AbortController();
     abortRef.current = controller;
     setIsRunning(true);
+    setLoadError(null);
+    let threadId = activeThreadId;
     const userMessage = textMessage("user", input);
     const assistantId = messageId("assistant");
     const pendingAssistant = {
@@ -52555,18 +52734,28 @@ function AssistantUiRuntimeProvider({ children }) {
     };
     setMessages((current) => [...current, userMessage, pendingAssistant]);
     try {
-      const reply = await previewReply(input, controller.signal);
-      setMessages(
-        (current) => current.map(
-          (item) => item.id === assistantId ? {
-            ...item,
-            content: [{ type: "text", text: reply }],
-            status: { type: "complete", reason: "stop" }
-          } : item
-        )
+      if (!threadId) {
+        threadId = (await createThread()).id;
+      }
+      const response = await assistantFetch(
+        `/assistant/threads/${encodeURIComponent(threadId)}/messages`,
+        {
+          method: "POST",
+          body: JSON.stringify({ message: input }),
+          signal: controller.signal
+        }
       );
+      setThreads((current) => mergeThread(current, response.thread));
+      setMessages(response.messages.map(toThreadMessage));
     } catch (error) {
       const cancelled = controller.signal.aborted;
+      const apiError = error instanceof AssistantApiError ? error : null;
+      if (apiError?.body.messages) {
+        setMessages(apiError.body.messages.map(toThreadMessage));
+      }
+      if (handleAuthError(error)) {
+        return;
+      }
       setMessages(
         (current) => current.map(
           (item) => item.id === assistantId ? {
@@ -52574,7 +52763,7 @@ function AssistantUiRuntimeProvider({ children }) {
             content: [
               {
                 type: "text",
-                text: cancelled ? "Request cancelled." : "The assistant preview endpoint did not return a response."
+                text: cancelled ? "Request cancelled." : error.message
               }
             ],
             status: {
@@ -52591,7 +52780,7 @@ function AssistantUiRuntimeProvider({ children }) {
       }
       setIsRunning(false);
     }
-  }, []);
+  }, [activeThreadId, apiKeyConfigured, createThread, handleAuthError]);
   const onCancel = (0, import_react141.useCallback)(async () => {
     abortRef.current?.abort();
   }, []);
@@ -52604,7 +52793,150 @@ function AssistantUiRuntimeProvider({ children }) {
     onCancel,
     unstable_capabilities: { copy: true }
   });
-  return /* @__PURE__ */ (0, import_jsx_runtime82.jsx)(AssistantRuntimeProvider, { runtime, aui: suggestionsAui, children });
+  return /* @__PURE__ */ (0, import_jsx_runtime82.jsxs)(AssistantRuntimeProvider, { runtime, aui: suggestionsAui, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime82.jsx)(
+      WorkerApiKeyDialog,
+      {
+        draft: apiKeyDraft,
+        open: authOpen,
+        setDraft: setApiKeyDraft,
+        canClose: apiKeyConfigured,
+        onClose: () => {
+          if (apiKeyConfigured) {
+            setAuthOpen(false);
+          }
+        },
+        onSubmit: (value) => {
+          const trimmed = value.trim();
+          if (!trimmed) {
+            return;
+          }
+          storeApiKeyCookie(trimmed);
+          setApiKeyConfigured(true);
+          setApiKeyDraft("");
+          setAuthOpen(false);
+        }
+      }
+    ),
+    /* @__PURE__ */ (0, import_jsx_runtime82.jsxs)("div", { className: "aui-app-shell", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime82.jsx)(
+        ThreadSidebar,
+        {
+          activeThreadId,
+          loadError,
+          threads,
+          onCreateThread: () => void createThread().catch((error) => setLoadError(error.message)),
+          onSelectThread: setActiveThreadId
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime82.jsx)(Thread, {})
+    ] })
+  ] });
+}
+function WorkerApiKeyDialog({
+  canClose,
+  draft,
+  open,
+  setDraft,
+  onClose,
+  onSubmit
+}) {
+  if (!open) {
+    return null;
+  }
+  return /* @__PURE__ */ (0, import_jsx_runtime82.jsx)("div", { className: "aui-auth-backdrop", children: /* @__PURE__ */ (0, import_jsx_runtime82.jsxs)(
+    "form",
+    {
+      "aria-labelledby": "worker-api-key-title",
+      "aria-modal": "true",
+      className: "aui-auth-dialog",
+      role: "dialog",
+      onSubmit: (event) => {
+        event.preventDefault();
+        onSubmit(draft);
+      },
+      children: [
+        /* @__PURE__ */ (0, import_jsx_runtime82.jsxs)("div", { className: "aui-auth-dialog-header", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime82.jsx)(KeyRound, {}),
+          /* @__PURE__ */ (0, import_jsx_runtime82.jsxs)("div", { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime82.jsx)("h2", { id: "worker-api-key-title", children: "Worker API key" }),
+            /* @__PURE__ */ (0, import_jsx_runtime82.jsx)("p", { children: "Authenticate this browser session to load threads and run Workspace tools." })
+          ] })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime82.jsx)(
+          "input",
+          {
+            autoFocus: true,
+            className: "aui-auth-input",
+            onChange: (event) => setDraft(event.currentTarget.value),
+            placeholder: "Paste WORKER_API_KEY",
+            type: "password",
+            value: draft
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime82.jsxs)("div", { className: "aui-auth-actions", children: [
+          canClose ? /* @__PURE__ */ (0, import_jsx_runtime82.jsx)(Button, { type: "button", variant: "ghost", onClick: onClose, children: "Cancel" }) : null,
+          /* @__PURE__ */ (0, import_jsx_runtime82.jsx)(Button, { type: "submit", disabled: !draft.trim(), children: "Save key" })
+        ] })
+      ]
+    }
+  ) });
+}
+function threadTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  return new Intl.DateTimeFormat(void 0, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(date);
+}
+function ThreadSidebar({
+  activeThreadId,
+  loadError,
+  onCreateThread,
+  onSelectThread,
+  threads
+}) {
+  return /* @__PURE__ */ (0, import_jsx_runtime82.jsxs)("aside", { className: "aui-thread-sidebar", "aria-label": "Threads", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime82.jsx)("div", { className: "aui-thread-sidebar-header", children: /* @__PURE__ */ (0, import_jsx_runtime82.jsxs)("div", { className: "aui-thread-sidebar-brand", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime82.jsx)("div", { className: "aui-thread-sidebar-brand-icon", children: /* @__PURE__ */ (0, import_jsx_runtime82.jsx)(MessageSquare, {}) }),
+      /* @__PURE__ */ (0, import_jsx_runtime82.jsxs)("div", { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime82.jsx)("strong", { children: "assistant-ui" }),
+        /* @__PURE__ */ (0, import_jsx_runtime82.jsx)("span", { children: "DocAssistant" })
+      ] })
+    ] }) }),
+    /* @__PURE__ */ (0, import_jsx_runtime82.jsxs)(
+      Button,
+      {
+        type: "button",
+        variant: "outline",
+        className: "aui-thread-list-new",
+        onClick: onCreateThread,
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime82.jsx)(Plus, {}),
+          "New Thread"
+        ]
+      }
+    ),
+    loadError ? /* @__PURE__ */ (0, import_jsx_runtime82.jsx)("div", { className: "aui-thread-sidebar-error", children: loadError }) : null,
+    /* @__PURE__ */ (0, import_jsx_runtime82.jsx)("div", { className: "aui-thread-list", children: threads.map((thread) => /* @__PURE__ */ (0, import_jsx_runtime82.jsx)(
+      "button",
+      {
+        className: cn("aui-thread-list-item", thread.id === activeThreadId && "active"),
+        onClick: () => onSelectThread(thread.id),
+        type: "button",
+        children: /* @__PURE__ */ (0, import_jsx_runtime82.jsxs)("span", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime82.jsx)("strong", { children: thread.title }),
+          /* @__PURE__ */ (0, import_jsx_runtime82.jsx)("small", { children: threadTime(thread.updatedAt) })
+        ] })
+      },
+      thread.id
+    )) })
+  ] });
 }
 var Button = (0, import_react141.forwardRef)(({ className, size: size4, variant = "default", ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime82.jsx)(
   "button",
@@ -52711,7 +53043,7 @@ var ThreadScrollToBottom = () => /* @__PURE__ */ (0, import_jsx_runtime82.jsx)(t
 var ThreadWelcome = () => /* @__PURE__ */ (0, import_jsx_runtime82.jsxs)("div", { className: "aui-thread-welcome-root my-auto flex grow flex-col", children: [
   /* @__PURE__ */ (0, import_jsx_runtime82.jsx)("div", { className: "aui-thread-welcome-center flex w-full grow flex-col items-center justify-center", children: /* @__PURE__ */ (0, import_jsx_runtime82.jsxs)("div", { className: "aui-thread-welcome-message flex size-full flex-col justify-center px-4", children: [
     /* @__PURE__ */ (0, import_jsx_runtime82.jsx)("h1", { className: "aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-2xl font-semibold duration-200", children: "Google Workspace MCP Assistant" }),
-    /* @__PURE__ */ (0, import_jsx_runtime82.jsx)("p", { className: "aui-thread-welcome-message-inner aui-thread-welcome-message-muted fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-muted-foreground text-xl delay-75 duration-200", children: "Ask about MCP installation, OpenAPI routes, Google Docs tools, or the Worker setup." })
+    /* @__PURE__ */ (0, import_jsx_runtime82.jsx)("p", { className: "aui-thread-welcome-message-inner aui-thread-welcome-message-muted fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-muted-foreground text-xl delay-75 duration-200", children: "Ask the Cloudflare Agent to create, edit, search, and organize Workspace files." })
   ] }) }),
   /* @__PURE__ */ (0, import_jsx_runtime82.jsx)(ThreadSuggestions, {})
 ] });
@@ -53011,7 +53343,7 @@ function ToolFallback() {
   return /* @__PURE__ */ (0, import_jsx_runtime82.jsx)("div", { className: "aui-tool-fallback", children: "Tool call" });
 }
 function AssistantUiApp() {
-  return /* @__PURE__ */ (0, import_jsx_runtime82.jsx)(AssistantUiRuntimeProvider, { children: /* @__PURE__ */ (0, import_jsx_runtime82.jsx)(Thread, {}) });
+  return /* @__PURE__ */ (0, import_jsx_runtime82.jsx)(AssistantWorkspace, {});
 }
 var root4 = document.getElementById("assistant-root");
 if (root4) {
@@ -53101,8 +53433,11 @@ lucide-react/dist/esm/icons/copy.mjs:
 lucide-react/dist/esm/icons/download.mjs:
 lucide-react/dist/esm/icons/ellipsis.mjs:
 lucide-react/dist/esm/icons/file-text.mjs:
+lucide-react/dist/esm/icons/key-round.mjs:
+lucide-react/dist/esm/icons/message-square.mjs:
 lucide-react/dist/esm/icons/paperclip.mjs:
 lucide-react/dist/esm/icons/pencil.mjs:
+lucide-react/dist/esm/icons/plus.mjs:
 lucide-react/dist/esm/icons/refresh-cw.mjs:
 lucide-react/dist/esm/icons/square.mjs:
 lucide-react/dist/esm/lucide-react.mjs:

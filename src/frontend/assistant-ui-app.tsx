@@ -34,9 +34,12 @@ import {
   CopyIcon,
   DownloadIcon,
   FileTextIcon,
+  KeyRoundIcon,
+  MessageSquareIcon,
   MoreHorizontalIcon,
   PaperclipIcon,
   PencilIcon,
+  PlusIcon,
   RefreshCwIcon,
   SquareIcon,
 } from "lucide-react";
@@ -45,6 +48,7 @@ import {
   forwardRef,
   memo,
   useCallback,
+  useEffect,
   useRef,
   useState,
   type ButtonHTMLAttributes,
@@ -56,21 +60,68 @@ import { createRoot } from "react-dom/client";
 
 const suggestions: SuggestionConfig[] = [
   {
-    title: "Install the MCP server",
-    label: "MCP setup",
-    prompt: "How do I install this MCP server?",
+    title: "Create a new doc",
+    label: "Docs",
+    prompt: "Create a Google Doc titled Project Notes and add a short outline.",
   },
   {
-    title: "OpenAPI and Scalar routes",
-    label: "API docs",
-    prompt: "Show me the OpenAPI and Scalar routes.",
+    title: "Search Drive",
+    label: "Drive",
+    prompt: "Search my Drive for recently modified planning documents.",
   },
   {
-    title: "Available Google Docs tools",
-    label: "Tool surface",
-    prompt: "Which Google Docs tools are available?",
+    title: "Edit a document",
+    label: "Docs",
+    prompt: "Help me update an existing Google Doc with markdown content.",
   },
 ];
+
+const API_KEY_COOKIE_NAME = "worker_api_key";
+const API_KEY_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+
+type AssistantThreadSummary = {
+  id: string;
+  title: string;
+  agentName: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type AssistantMessageRow = {
+  id: string;
+  threadId: string;
+  role: "system" | "user" | "assistant" | "tool";
+  content: string;
+  createdAt: string;
+};
+
+type ThreadListResponse = {
+  threads: AssistantThreadSummary[];
+};
+
+type ThreadResponse = {
+  thread: AssistantThreadSummary;
+};
+
+type MessagesResponse = {
+  thread: AssistantThreadSummary;
+  messages: AssistantMessageRow[];
+};
+
+type ApiErrorBody = {
+  error?: string;
+  messages?: AssistantMessageRow[];
+};
+
+class AssistantApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly body: ApiErrorBody = {}
+  ) {
+    super(message);
+  }
+}
 
 function cn(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(" ");
@@ -92,6 +143,34 @@ function textMessage(role: "assistant" | "user", text: string): ThreadMessageLik
   };
 }
 
+function cookieValue(name: string): string {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = document.cookie.match(new RegExp(`(?:^|; )${escapedName}=([^;]*)`));
+
+  if (!match) {
+    return "";
+  }
+
+  try {
+    return decodeURIComponent(match[1]);
+  } catch (error) {
+    return match[1];
+  }
+}
+
+function hasStoredApiKey(): boolean {
+  return cookieValue(API_KEY_COOKIE_NAME).length > 0;
+}
+
+function storeApiKeyCookie(value: string): void {
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${API_KEY_COOKIE_NAME}=${encodeURIComponent(value)}; Path=/; Max-Age=${API_KEY_COOKIE_MAX_AGE_SECONDS}; SameSite=Strict${secure}`;
+}
+
+function clearStoredApiKeyCookie(): void {
+  document.cookie = `${API_KEY_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Strict`;
+}
+
 function messageText(message: AppendMessage): string {
   return message.content
     .map((part) => (part.type === "text" ? part.text : ""))
@@ -99,27 +178,166 @@ function messageText(message: AppendMessage): string {
     .trim();
 }
 
-async function previewReply(text: string, signal: AbortSignal): Promise<string> {
-  const response = await fetch("/assistant/preview", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ message: text }),
-    signal,
-  });
-
-  if (!response.ok) {
-    throw new Error(`Assistant preview failed with ${response.status}`);
-  }
-
-  const body = (await response.json()) as { reply?: string };
-  return body.reply?.trim() || "I could not generate a preview response.";
+function toThreadMessage(message: AssistantMessageRow): ThreadMessageLike {
+  return {
+    id: message.id,
+    role: message.role === "assistant" ? "assistant" : "user",
+    createdAt: new Date(message.createdAt),
+    content: [{ type: "text", text: message.content }],
+    ...(message.role === "assistant"
+      ? { status: { type: "complete" as const, reason: "stop" as const } }
+      : {}),
+  };
 }
 
-function AssistantUiRuntimeProvider({ children }: { children: ReactNode }) {
+function sortThreads(threads: AssistantThreadSummary[]): AssistantThreadSummary[] {
+  return [...threads].sort(
+    (first, second) => new Date(second.updatedAt).getTime() - new Date(first.updatedAt).getTime()
+  );
+}
+
+function mergeThread(
+  threads: AssistantThreadSummary[],
+  thread: AssistantThreadSummary
+): AssistantThreadSummary[] {
+  return sortThreads([thread, ...threads.filter((item) => item.id !== thread.id)]);
+}
+
+async function assistantFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const headers = new Headers(init.headers);
+
+  if (init.body && !headers.has("content-type")) {
+    headers.set("content-type", "application/json");
+  }
+
+  const response = await fetch(path, { ...init, credentials: "same-origin", headers });
+  const body = (await response.json().catch(() => ({}))) as ApiErrorBody;
+
+  if (!response.ok) {
+    throw new AssistantApiError(body.error || `Assistant request failed with ${response.status}`, response.status, body);
+  }
+
+  return body as T;
+}
+
+function AssistantWorkspace() {
+  const [apiKeyConfigured, setApiKeyConfigured] = useState(hasStoredApiKey);
+  const [apiKeyDraft, setApiKeyDraft] = useState("");
+  const [authOpen, setAuthOpen] = useState(() => !hasStoredApiKey());
+  const [threads, setThreads] = useState<AssistantThreadSummary[]>([]);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [messages, setMessages] = useState<readonly ThreadMessageLike[]>([]);
   const [isRunning, setIsRunning] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const suggestionsAui = useAui({ suggestions: Suggestions(suggestions) }, { parent: null });
+
+  const handleAuthError = useCallback((error: unknown) => {
+    const message = error instanceof AssistantApiError ? error.message : "";
+    const isAuthError =
+      error instanceof AssistantApiError &&
+      (error.status === 401 || /worker[_\s-]?api[_\s-]?key|WORKER_API_KEY/i.test(message));
+
+    if (isAuthError) {
+      clearStoredApiKeyCookie();
+      setApiKeyConfigured(false);
+      setAuthOpen(true);
+      setLoadError(error.message);
+      return true;
+    }
+
+    return false;
+  }, []);
+
+  const createThread = useCallback(async () => {
+    if (!apiKeyConfigured) {
+      setAuthOpen(true);
+      throw new Error("Worker API key required");
+    }
+
+    const response = await assistantFetch<ThreadResponse>("/assistant/threads", {
+      method: "POST",
+      body: JSON.stringify({ title: "New thread" }),
+    });
+
+    setThreads((current) => mergeThread(current, response.thread));
+    setActiveThreadId(response.thread.id);
+    setMessages([]);
+    return response.thread;
+  }, [apiKeyConfigured]);
+
+  useEffect(() => {
+    if (!apiKeyConfigured) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadThreads() {
+      try {
+        setLoadError(null);
+        const response = await assistantFetch<ThreadListResponse>("/assistant/threads");
+        let nextThreads = response.threads;
+
+        if (nextThreads.length === 0) {
+          const created = await assistantFetch<ThreadResponse>("/assistant/threads", {
+            method: "POST",
+            body: JSON.stringify({ title: "New thread" }),
+          });
+          nextThreads = [created.thread];
+        }
+
+        if (!cancelled) {
+          setThreads(sortThreads(nextThreads));
+          setActiveThreadId((current) => current ?? nextThreads[0]?.id ?? null);
+        }
+      } catch (error) {
+        if (!cancelled && !handleAuthError(error)) {
+          setLoadError((error as Error).message);
+        }
+      }
+    }
+
+    void loadThreads();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiKeyConfigured, handleAuthError]);
+
+  useEffect(() => {
+    if (!apiKeyConfigured || !activeThreadId) {
+      setMessages([]);
+      return;
+    }
+
+    const threadId = activeThreadId;
+    let cancelled = false;
+
+    async function loadMessages() {
+      try {
+        setLoadError(null);
+        const response = await assistantFetch<MessagesResponse>(
+          `/assistant/threads/${encodeURIComponent(threadId)}/messages`
+        );
+
+        if (!cancelled) {
+          setThreads((current) => mergeThread(current, response.thread));
+          setMessages(response.messages.map(toThreadMessage));
+        }
+      } catch (error) {
+        if (!cancelled && !handleAuthError(error)) {
+          setLoadError((error as Error).message);
+        }
+      }
+    }
+
+    void loadMessages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeThreadId, apiKeyConfigured, handleAuthError]);
 
   const onNew = useCallback(async (message: AppendMessage) => {
     const input = messageText(message);
@@ -128,9 +346,17 @@ function AssistantUiRuntimeProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    if (!apiKeyConfigured) {
+      setAuthOpen(true);
+      return;
+    }
+
     const controller = new AbortController();
     abortRef.current = controller;
     setIsRunning(true);
+    setLoadError(null);
+
+    let threadId = activeThreadId;
 
     const userMessage = textMessage("user", input);
     const assistantId = messageId("assistant");
@@ -145,20 +371,32 @@ function AssistantUiRuntimeProvider({ children }: { children: ReactNode }) {
     setMessages((current) => [...current, userMessage, pendingAssistant]);
 
     try {
-      const reply = await previewReply(input, controller.signal);
-      setMessages((current) =>
-        current.map((item) =>
-          item.id === assistantId
-            ? {
-                ...item,
-                content: [{ type: "text", text: reply }],
-                status: { type: "complete" as const, reason: "stop" as const },
-              }
-            : item
-        )
+      if (!threadId) {
+        threadId = (await createThread()).id;
+      }
+
+      const response = await assistantFetch<MessagesResponse>(
+        `/assistant/threads/${encodeURIComponent(threadId)}/messages`,
+        {
+          method: "POST",
+          body: JSON.stringify({ message: input }),
+          signal: controller.signal,
+        }
       );
+      setThreads((current) => mergeThread(current, response.thread));
+      setMessages(response.messages.map(toThreadMessage));
     } catch (error) {
       const cancelled = controller.signal.aborted;
+      const apiError = error instanceof AssistantApiError ? error : null;
+
+      if (apiError?.body.messages) {
+        setMessages(apiError.body.messages.map(toThreadMessage));
+      }
+
+      if (handleAuthError(error)) {
+        return;
+      }
+
       setMessages((current) =>
         current.map((item) =>
           item.id === assistantId
@@ -169,7 +407,7 @@ function AssistantUiRuntimeProvider({ children }: { children: ReactNode }) {
                     type: "text",
                     text: cancelled
                       ? "Request cancelled."
-                      : "The assistant preview endpoint did not return a response.",
+                      : (error as Error).message,
                   },
                 ],
                 status: {
@@ -187,7 +425,7 @@ function AssistantUiRuntimeProvider({ children }: { children: ReactNode }) {
       }
       setIsRunning(false);
     }
-  }, []);
+  }, [activeThreadId, apiKeyConfigured, createThread, handleAuthError]);
 
   const onCancel = useCallback(async () => {
     abortRef.current?.abort();
@@ -205,8 +443,171 @@ function AssistantUiRuntimeProvider({ children }: { children: ReactNode }) {
 
   return (
     <AssistantRuntimeProvider runtime={runtime} aui={suggestionsAui}>
-      {children}
+      <WorkerApiKeyDialog
+        draft={apiKeyDraft}
+        open={authOpen}
+        setDraft={setApiKeyDraft}
+        canClose={apiKeyConfigured}
+        onClose={() => {
+          if (apiKeyConfigured) {
+            setAuthOpen(false);
+          }
+        }}
+        onSubmit={(value) => {
+          const trimmed = value.trim();
+
+          if (!trimmed) {
+            return;
+          }
+
+          storeApiKeyCookie(trimmed);
+          setApiKeyConfigured(true);
+          setApiKeyDraft("");
+          setAuthOpen(false);
+        }}
+      />
+      <div className="aui-app-shell">
+        <ThreadSidebar
+          activeThreadId={activeThreadId}
+          loadError={loadError}
+          threads={threads}
+          onCreateThread={() => void createThread().catch((error) => setLoadError((error as Error).message))}
+          onSelectThread={setActiveThreadId}
+        />
+        <Thread />
+      </div>
     </AssistantRuntimeProvider>
+  );
+}
+
+function WorkerApiKeyDialog({
+  canClose,
+  draft,
+  open,
+  setDraft,
+  onClose,
+  onSubmit,
+}: {
+  canClose: boolean;
+  draft: string;
+  open: boolean;
+  setDraft: (value: string) => void;
+  onClose: () => void;
+  onSubmit: (value: string) => void;
+}) {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <div className="aui-auth-backdrop">
+      <form
+        aria-labelledby="worker-api-key-title"
+        aria-modal="true"
+        className="aui-auth-dialog"
+        role="dialog"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSubmit(draft);
+        }}
+      >
+        <div className="aui-auth-dialog-header">
+          <KeyRoundIcon />
+          <div>
+            <h2 id="worker-api-key-title">Worker API key</h2>
+            <p>Authenticate this browser session to load threads and run Workspace tools.</p>
+          </div>
+        </div>
+        <input
+          autoFocus
+          className="aui-auth-input"
+          onChange={(event) => setDraft(event.currentTarget.value)}
+          placeholder="Paste WORKER_API_KEY"
+          type="password"
+          value={draft}
+        />
+        <div className="aui-auth-actions">
+          {canClose ? (
+            <Button type="button" variant="ghost" onClick={onClose}>
+              Cancel
+            </Button>
+          ) : null}
+          <Button type="submit" disabled={!draft.trim()}>
+            Save key
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function threadTime(value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function ThreadSidebar({
+  activeThreadId,
+  loadError,
+  onCreateThread,
+  onSelectThread,
+  threads,
+}: {
+  activeThreadId: string | null;
+  loadError: string | null;
+  onCreateThread: () => void;
+  onSelectThread: (threadId: string) => void;
+  threads: AssistantThreadSummary[];
+}) {
+  return (
+    <aside className="aui-thread-sidebar" aria-label="Threads">
+      <div className="aui-thread-sidebar-header">
+        <div className="aui-thread-sidebar-brand">
+          <div className="aui-thread-sidebar-brand-icon">
+            <MessageSquareIcon />
+          </div>
+          <div>
+            <strong>assistant-ui</strong>
+            <span>DocAssistant</span>
+          </div>
+        </div>
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        className="aui-thread-list-new"
+        onClick={onCreateThread}
+      >
+        <PlusIcon />
+        New Thread
+      </Button>
+      {loadError ? <div className="aui-thread-sidebar-error">{loadError}</div> : null}
+      <div className="aui-thread-list">
+        {threads.map((thread) => (
+          <button
+            className={cn("aui-thread-list-item", thread.id === activeThreadId && "active")}
+            key={thread.id}
+            onClick={() => onSelectThread(thread.id)}
+            type="button"
+          >
+            <span>
+              <strong>{thread.title}</strong>
+              <small>{threadTime(thread.updatedAt)}</small>
+            </span>
+          </button>
+        ))}
+      </div>
+    </aside>
   );
 }
 
@@ -343,7 +744,7 @@ const ThreadWelcome: FC = () => (
           Google Workspace MCP Assistant
         </h1>
         <p className="aui-thread-welcome-message-inner aui-thread-welcome-message-muted fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-muted-foreground text-xl delay-75 duration-200">
-          Ask about MCP installation, OpenAPI routes, Google Docs tools, or the Worker setup.
+          Ask the Cloudflare Agent to create, edit, search, and organize Workspace files.
         </p>
       </div>
     </div>
@@ -741,11 +1142,7 @@ function ToolFallback() {
 }
 
 function AssistantUiApp() {
-  return (
-    <AssistantUiRuntimeProvider>
-      <Thread />
-    </AssistantUiRuntimeProvider>
-  );
+  return <AssistantWorkspace />;
 }
 
 const root = document.getElementById("assistant-root");
