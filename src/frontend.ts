@@ -437,22 +437,23 @@ function textFromParts(message) {
 }
 
 function renderFallback(error) {
+  const escape = (str) => String(str).replace(/[&<>'" ]/g, (tag) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
   let messages = [
     { role: "assistant", text: "Ask about MCP installation, OpenAPI routes, Google Docs tools, or the Cloudflare Agent setup." }
   ];
 
   const paint = () => {
-    root.innerHTML = \`
-      <div class="chat-shell">
-        <div class="messages" aria-live="polite">
-          \${messages.map((message) => \`<div class="message \${message.role === "user" ? "user" : ""}">\${message.text}</div>\`).join("")}
-          \${error ? \`<div class="message">Chat SDK module fallback is active. \${error}</div>\` : ""}
-        </div>
-        <form class="composer">
-          <input name="message" autocomplete="off" placeholder="Ask how to install the MCP server..." />
-          <button class="button primary" type="submit">Send</button>
-        </form>
-      </div>\`;
+    root.innerHTML =
+      '<div class="chat-shell">' +
+        '<div class="messages" aria-live="polite">' +
+          messages.map((message) => '<div class="message ' + (message.role === "user" ? "user" : "") + '">' + escape(message.text) + '</div>').join("") +
+          (error ? '<div class="message">Chat SDK module fallback is active. ' + escape(error) + '</div>' : "") +
+        '</div>' +
+        '<form class="composer">' +
+          '<input name="message" autocomplete="off" placeholder="Ask how to install the MCP server..." />' +
+          '<button class="button primary" type="submit">Send</button>' +
+        '</form>' +
+      '</div>';
 
     root.querySelector("form").addEventListener("submit", async (event) => {
       event.preventDefault();
