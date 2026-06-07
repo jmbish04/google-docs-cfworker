@@ -1,5 +1,6 @@
 type ChatMessage = {
   role?: string;
+  content?: string;
   parts?: Array<{
     type?: string;
     text?: string;
@@ -17,11 +18,17 @@ function partText(part: NonNullable<ChatMessage["parts"]>[number]): string {
 export function latestUserText(messages: ChatMessage[]): string {
   const lastUserMessage = [...messages].reverse().find((message) => message.role === "user");
 
-  if (!lastUserMessage?.parts) {
+  if (!lastUserMessage) {
     return "";
   }
 
-  return lastUserMessage.parts.map(partText).join("").trim();
+  const textFromParts = lastUserMessage.parts?.map(partText).join("").trim();
+
+  if (textFromParts) {
+    return textFromParts;
+  }
+
+  return lastUserMessage.content?.trim() ?? "";
 }
 
 export function buildDocAssistantReply(prompt: string): string {
