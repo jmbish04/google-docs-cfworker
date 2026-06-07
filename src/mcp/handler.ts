@@ -1,8 +1,9 @@
 // MCP Protocol Handler
 import { Context } from 'hono';
-import { JsonRpcRequest, JsonRpcResponse, JsonRpcErrorCode, McpContent } from './schemas';
+import { jsonRpcRequestSchema, JsonRpcRequest, JsonRpcResponse, JsonRpcErrorCode, McpContent } from './schemas';
 import { mcpTools } from './tools';
 import { GoogleApiClient } from '../services/GoogleApiClient';
+import { decodeMarkdownInput, markdownToGoogleDocsRequests } from '../utils/markdown-to-google-docs';
 
 /**
  * Execute a Google Workspace MCP tool (Docs, Drive, Sheets)
@@ -46,9 +47,12 @@ async function executeWorkspaceTool(
 
       case 'google_docs_markdown_insert': {
         const { documentId, markdown } = args;
+        const decodedMarkdown = decodeMarkdownInput(markdown);
+        const requests = markdownToGoogleDocsRequests(decodedMarkdown);
+        const data = await client.docs_batchUpdate(documentId, requests);
         return [{
           type: 'text',
-          text: 'Markdown insertion requires the markdown conversion logic from the REST API endpoint. Use the google_docs_batch_update tool with converted requests instead.'
+          text: `Successfully inserted markdown content with ${requests.length} updates.\n\nResponse:\n${JSON.stringify(data, null, 2)}`
         }];
       }
 
@@ -57,7 +61,10 @@ async function executeWorkspaceTool(
 
         // Get document to find end index if not provided
         const docData = await client.docs_get(documentId, 'body.content.endIndex');
-        const endIndex = (docData as any).body.content[(docData as any).body.content.length - 1].endIndex - 1;
+        const content = (docData as any).body?.content;
+        const endIndex = Array.isArray(content) && content.length > 0
+          ? (content[content.length - 1].endIndex || 1) - 1
+          : 1;
 
         const deleteRequests = [{
           deleteContentRange: {
@@ -254,10 +261,10 @@ async function executeWorkspaceTool(
  * Handle MCP JSON-RPC 2.0 requests
  */
 export async function handleMcpRequest(c: Context): Promise<Response> {
-  let request: JsonRpcRequest;
+  let body: unknown;
 
   try {
-    request = await c.req.json();
+    body = await c.req.json();
   } catch (error) {
     const errorResponse: JsonRpcResponse = {
       jsonrpc: '2.0',
@@ -270,18 +277,20 @@ export async function handleMcpRequest(c: Context): Promise<Response> {
     return c.json(errorResponse, 400);
   }
 
-  // Validate JSON-RPC structure
-  if (request.jsonrpc !== '2.0') {
+  const parseResult = jsonRpcRequestSchema.safeParse(body);
+  if (!parseResult.success) {
     const errorResponse: JsonRpcResponse = {
       jsonrpc: '2.0',
-      id: request.id || null,
+      id: body && typeof body === 'object' && 'id' in body ? (body as { id?: JsonRpcRequest['id'] }).id ?? null : null,
       error: {
         code: JsonRpcErrorCode.INVALID_REQUEST,
-        message: 'Invalid Request: jsonrpc must be "2.0"',
+        message: `Invalid Request: ${parseResult.error.issues.map((issue: { message: string }) => issue.message).join(', ')}`,
       },
     };
     return c.json(errorResponse, 400);
   }
+
+  const request = parseResult.data;
 
   try {
     const { method, params, id } = request;

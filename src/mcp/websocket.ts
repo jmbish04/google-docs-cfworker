@@ -19,6 +19,8 @@ export async function handleWebSocket(c: Context): Promise<Response> {
   // Accept the WebSocket connection
   server.accept();
 
+  let authToken: string | undefined;
+
   // Handle WebSocket messages
   server.addEventListener('message', async (event: MessageEvent) => {
     try {
@@ -35,6 +37,9 @@ export async function handleWebSocket(c: Context): Promise<Response> {
       }
 
       const request = JSON.parse(message);
+      if (request._auth) {
+        authToken = request._auth;
+      }
 
       // Create a mock Hono context for the MCP handler
       const mockContext = {
@@ -42,8 +47,9 @@ export async function handleWebSocket(c: Context): Promise<Response> {
           json: async () => request,
           header: (name: string) => {
             // WebSocket connections can send auth via first message
-            if (name === 'Authorization' && request._auth) {
-              return `Bearer ${request._auth}`;
+            if (name === 'Authorization') {
+              const token = authToken || request._auth;
+              return token ? `Bearer ${token}` : undefined;
             }
             return undefined;
           },

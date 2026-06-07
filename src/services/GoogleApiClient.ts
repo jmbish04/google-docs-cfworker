@@ -39,7 +39,7 @@ export class GoogleApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
+      const error: any = await response.json().catch(() => ({ error: { message: response.statusText } }));
       throw new Error(error.error?.message || `Failed to get document: ${response.statusText}`);
     }
 
@@ -54,7 +54,7 @@ export class GoogleApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
+      const error: any = await response.json().catch(() => ({ error: { message: response.statusText } }));
       throw new Error(error.error?.message || `Batch update failed: ${response.statusText}`);
     }
 
@@ -69,7 +69,7 @@ export class GoogleApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
+      const error: any = await response.json().catch(() => ({ error: { message: response.statusText } }));
       throw new Error(error.error?.message || `Document creation failed: ${response.statusText}`);
     }
 
@@ -100,7 +100,7 @@ export class GoogleApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
+      const error: any = await response.json().catch(() => ({ error: { message: response.statusText } }));
       throw new Error(error.error?.message || `Failed to list files: ${response.statusText}`);
     }
 
@@ -119,7 +119,7 @@ export class GoogleApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
+      const error: any = await response.json().catch(() => ({ error: { message: response.statusText } }));
       throw new Error(error.error?.message || `Failed to get file: ${response.statusText}`);
     }
 
@@ -134,7 +134,7 @@ export class GoogleApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
+      const error: any = await response.json().catch(() => ({ error: { message: response.statusText } }));
       throw new Error(error.error?.message || `Failed to create file: ${response.statusText}`);
     }
 
@@ -158,7 +158,7 @@ export class GoogleApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
+      const error: any = await response.json().catch(() => ({ error: { message: response.statusText } }));
       throw new Error(error.error?.message || `Failed to update file: ${response.statusText}`);
     }
 
@@ -172,7 +172,7 @@ export class GoogleApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
+      const error: any = await response.json().catch(() => ({ error: { message: response.statusText } }));
       throw new Error(error.error?.message || `Failed to delete file: ${response.statusText}`);
     }
   }
@@ -196,7 +196,7 @@ export class GoogleApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
+      const error: any = await response.json().catch(() => ({ error: { message: response.statusText } }));
       throw new Error(error.error?.message || `Failed to get spreadsheet: ${response.statusText}`);
     }
 
@@ -213,7 +213,7 @@ export class GoogleApiClient {
     );
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
+      const error: any = await response.json().catch(() => ({ error: { message: response.statusText } }));
       throw new Error(error.error?.message || `Failed to get values: ${response.statusText}`);
     }
 
@@ -236,7 +236,7 @@ export class GoogleApiClient {
     );
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
+      const error: any = await response.json().catch(() => ({ error: { message: response.statusText } }));
       throw new Error(error.error?.message || `Failed to update values: ${response.statusText}`);
     }
 
@@ -254,7 +254,7 @@ export class GoogleApiClient {
     );
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
+      const error: any = await response.json().catch(() => ({ error: { message: response.statusText } }));
       throw new Error(error.error?.message || `Batch update failed: ${response.statusText}`);
     }
 
@@ -273,7 +273,7 @@ export class GoogleApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
+      const error: any = await response.json().catch(() => ({ error: { message: response.statusText } }));
       throw new Error(error.error?.message || `Failed to create spreadsheet: ${response.statusText}`);
     }
 
@@ -296,7 +296,7 @@ export class GoogleApiClient {
     );
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
+      const error: any = await response.json().catch(() => ({ error: { message: response.statusText } }));
       throw new Error(error.error?.message || `Failed to append values: ${response.statusText}`);
     }
 
