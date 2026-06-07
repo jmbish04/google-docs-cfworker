@@ -4,7 +4,7 @@ import { setCookie } from "hono/cookie";
 export async function ui(c: Context) {
     const accessToken = c.req.query('access_token');
     const error = c.req.query('error');
-    const spec = c.req.param('spec') || 'swagger.yaml';    
+    const spec = c.req.param('spec') || 'public.yaml';
     // Store the current path as the redirect path for OAuth
     const currentPath = `/swagger/${spec}`;
     // Set the cookie when the UI loads - this ensures the cookie is set even when
@@ -15,7 +15,7 @@ export async function ui(c: Context) {
       secure: c.req.url.startsWith('https'),
       maxAge: 60 * 10 // 10 minutes
     });
-    
+
     const html = `
       <!DOCTYPE html>
       <html lang="en">

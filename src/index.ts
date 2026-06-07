@@ -1,12 +1,15 @@
 import { Hono } from "hono";
 import { serveStatic } from "hono/cloudflare-workers";
 import { forwardLogin, forwardToken, handleCallback } from "./auth";
+import { buildDocAssistantReply } from "./assistant";
 import docs from "./docs/routes";
 import { ui } from "./openapi/swagger-ui";
 import { serveOpenAPISpec } from "./openapi/spec";
 import { serveScalarUI } from "./openapi/scalar";
 import { handleMcpRequest } from "./mcp/handler";
 import { handleWebSocket } from "./mcp/websocket";
+import { mcpTools } from "./mcp/tools";
+import { serveDocs, serveLanding } from "./frontend";
 
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 
@@ -23,8 +26,43 @@ export class DocAssistant {
   }
 }
 
-// Root endpoint - redirect to Scalar API docs
-app.get("/", (c) => c.redirect("/docs"));
+// Frontend routes
+app.get("/", serveLanding);
+app.get("/docs", serveDocs);
+app.get("/docs/", serveDocs);
+app.post("/assistant/preview", async (c) => {
+  const body: { message?: string } = await c.req.json<{ message?: string }>().catch(() => ({}));
+
+  return c.json({ reply: buildDocAssistantReply(body.message?.trim() ?? "") });
+});
+
+app.get("/context", (c) =>
+  c.json({
+    service: "google-workspace-mcp",
+    runtime: "cloudflare-workers",
+    assistant: {
+      className: "DocAssistant",
+      previewRoute: "/assistant/preview",
+      chatSdkRoute: "/agents/doc-assistant/landing",
+      client: ["agents/react useAgent", "@cloudflare/ai-chat/react useAgentChat"],
+    },
+    docs: {
+      product: "/docs",
+      openapi: "/openapi.json",
+      scalar: "/scalar",
+      scaler: "/scaler",
+      swagger: "/swagger",
+    },
+    mcp: {
+      http: "/mcp",
+      websocket: "/mcp/ws",
+      tools: mcpTools.map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+      })),
+    },
+  })
+);
 
 // Health check endpoint
 app.get("/health", (c) =>
@@ -57,13 +95,24 @@ app.route("/v1", docs);
 app.get("/openapi.json", serveOpenAPISpec);
 
 // Swagger UI (legacy support)
+app.get("/swagger", ui);
 app.get("/swagger/:spec", ui);
 
 // Scalar API Documentation (modern, feature-rich)
-app.get("/docs", serveScalarUI);
+app.get("/scaler", serveScalarUI);
 app.get("/scalar", serveScalarUI);
 
 // Static files route
+app.all("/openapi/*", async (c, next) => {
+  try {
+    await serveStatic({
+      manifest: c.env.STATIC_MANIFEST,
+    })(c, next);
+  } catch (error) {
+    return c.json({ error: "Error serving OpenAPI content" }, 500);
+  }
+});
+
 app.all("/public/*", async (c, next) => {
   try {
     await serveStatic({
