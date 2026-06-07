@@ -10,6 +10,19 @@ import { handleWebSocket } from "./mcp/websocket";
 
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 
+export class DocAssistant {
+  constructor(
+    private readonly state: DurableObjectState,
+    private readonly env: CloudflareBindings
+  ) {}
+
+  async fetch(): Promise<Response> {
+    return new Response("DocAssistant is retained for Durable Object compatibility.", {
+      status: 410,
+    });
+  }
+}
+
 // Root endpoint - redirect to Scalar API docs
 app.get("/", (c) => c.redirect("/docs"));
 
