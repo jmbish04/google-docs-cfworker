@@ -14,27 +14,28 @@
 
 .aui-thread {
   height: 100%;
-  min-height: 584px;
+  min-height: calc(100vh - 64px);
 }
 
 .aui-viewport {
   position: relative;
   display: flex;
   height: 100%;
-  min-height: 584px;
+  min-height: calc(100vh - 64px);
   flex-direction: column;
-  gap: 14px;
+  gap: 18px;
   overflow-y: auto;
-  padding: 16px;
+  padding: 24px 0 0;
   scroll-behavior: smooth;
 }
 
 .aui-welcome {
   display: grid;
   gap: 14px;
-  max-width: 620px;
-  margin: auto 0;
+  width: min(680px, 100%);
+  margin: auto auto;
   padding: 4px 2px 88px;
+  text-align: center;
 }
 
 .aui-welcome h3 {
@@ -53,6 +54,7 @@
 .aui-suggestions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 8px;
 }
 
@@ -77,6 +79,7 @@
   gap: 10px;
   align-items: flex-start;
   width: 100%;
+  padding: 0 4px;
 }
 
 .aui-message-row.user {
@@ -105,7 +108,7 @@
 }
 
 .aui-message {
-  width: min(84%, 560px);
+  width: min(82%, 680px);
   border: 1px solid var(--aui-border);
   border-radius: 8px;
   padding: 12px 13px;
@@ -152,10 +155,10 @@
   bottom: 0;
   display: grid;
   gap: 10px;
-  margin: auto -16px -16px;
+  margin-top: auto;
   border-top: 1px solid var(--aui-border);
   background: color-mix(in srgb, var(--aui-background) 88%, transparent);
-  padding: 12px 14px 14px;
+  padding: 12px 4px 16px;
   backdrop-filter: blur(12px);
 }
 
@@ -243,10 +246,14 @@
   .aui-thread,
   .aui-viewport,
   .assistant-ui-loading {
-    min-height: 504px;
+    min-height: calc(100vh - 146px);
   }
 
   .aui-message {
     width: min(88%, 560px);
+  }
+
+  .aui-viewport {
+    padding-top: 18px;
   }
 }
