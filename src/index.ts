@@ -3,22 +3,52 @@ import { serveStatic } from "hono/cloudflare-workers";
 import { forwardLogin, forwardToken, handleCallback } from "./auth";
 import docs from "./docs/routes";
 import { ui } from "./openapi/swagger-ui";
+import { serveOpenAPISpec } from "./openapi/spec";
+import { serveScalarUI } from "./openapi/scalar";
+import { handleMcpRequest } from "./mcp/handler";
+import { handleWebSocket } from "./mcp/websocket";
 
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 
-// Root endpoint
-app.get("/", (c) => c.redirect("/swagger/public.yaml"));
+// Root endpoint - redirect to Scalar API docs
+app.get("/", (c) => c.redirect("/docs"));
+
+// Health check endpoint
+app.get("/health", (c) =>
+  c.json({
+    status: "ok",
+    service: "google-workspace-mcp",
+    version: "1.0.0",
+    features: ["REST API", "MCP Protocol", "WebSocket"],
+  })
+);
 
 // AUTHENTICATION ROUTES
 app.get("/auth2/v2/auth", (c) => forwardLogin(c));
 app.post("/auth2/token", (c) => forwardToken(c));
 app.get("/swagger/oauth2-redirect.html", (c) => handleCallback(c));
 
-// Mount the subroutes using app.routex
+// MCP PROTOCOL ROUTES
+// JSON-RPC 2.0 endpoint for MCP
+app.post("/mcp", handleMcpRequest);
+
+// WebSocket endpoint for MCP
+app.get("/mcp/ws", handleWebSocket);
+
+// REST API ROUTES
+// Mount the Google Docs REST API routes
 app.route("/v1", docs);
 
-// Swagger UI route
+// API DOCUMENTATION ROUTES
+// Dynamic OpenAPI specification
+app.get("/openapi.json", serveOpenAPISpec);
+
+// Swagger UI (legacy support)
 app.get("/swagger/:spec", ui);
+
+// Scalar API Documentation (modern, feature-rich)
+app.get("/docs", serveScalarUI);
+app.get("/scalar", serveScalarUI);
 
 // Static files route
 app.all("/public/*", async (c, next) => {
