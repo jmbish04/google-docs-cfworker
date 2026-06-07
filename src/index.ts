@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { serveStatic } from "hono/cloudflare-workers";
 import { forwardLogin, forwardToken, handleCallback } from "./auth";
 import { buildDocAssistantReply } from "./assistant";
@@ -12,6 +12,14 @@ import { mcpTools } from "./mcp/tools";
 import { serveDocs, serveLanding } from "./frontend";
 
 const app = new Hono<{ Bindings: CloudflareBindings }>();
+
+function serveWorkerAsset(pathname: string) {
+  return (c: Context<{ Bindings: CloudflareBindings }>) => {
+    const assetUrl = new URL(c.req.url);
+    assetUrl.pathname = pathname;
+    return c.env.STATIC_MANIFEST.fetch(new Request(assetUrl, c.req.raw));
+  };
+}
 
 export class DocAssistant {
   constructor(
@@ -30,6 +38,8 @@ export class DocAssistant {
 app.get("/", serveLanding);
 app.get("/docs", serveDocs);
 app.get("/docs/", serveDocs);
+app.get("/assistant-ui-app.css", serveWorkerAsset("/assistant-ui-app.css"));
+app.get("/assistant-ui-app.js", serveWorkerAsset("/assistant-ui-app.js"));
 app.post("/assistant/preview", async (c) => {
   const body: { message?: string } = await c.req.json<{ message?: string }>().catch(() => ({}));
 

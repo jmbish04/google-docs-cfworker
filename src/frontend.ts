@@ -420,101 +420,8 @@ function shell(title: string, active: ActivePage, body: string, script = ""): st
 }
 
 function assistantMountScript(): string {
-  return `<script type="module">
-const root = document.getElementById("assistant-root");
-const fallbackReply = async (text) => {
-  const response = await fetch("/assistant/preview", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ message: text })
-  });
-  return response.json();
-};
-
-function textFromParts(message) {
-  if (!message?.parts) return "";
-  return message.parts.map((part) => part.type === "text" ? part.text : "").join("");
-}
-
-function renderFallback(error) {
-  const escape = (str) => String(str).replace(/[&<>'" ]/g, (tag) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
-  let messages = [
-    { role: "assistant", text: "Ask about MCP installation, OpenAPI routes, Google Docs tools, or the Cloudflare Agent setup." }
-  ];
-
-  const paint = () => {
-    root.innerHTML =
-      '<div class="chat-shell">' +
-        '<div class="messages" aria-live="polite">' +
-          messages.map((message) => '<div class="message ' + (message.role === "user" ? "user" : "") + '">' + escape(message.text) + '</div>').join("") +
-          (error ? '<div class="message">Chat SDK module fallback is active. ' + escape(error) + '</div>' : "") +
-        '</div>' +
-        '<form class="composer">' +
-          '<input name="message" autocomplete="off" placeholder="Ask how to install the MCP server..." />' +
-          '<button class="button primary" type="submit">Send</button>' +
-        '</form>' +
-      '</div>';
-
-    root.querySelector("form").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const input = event.currentTarget.elements.namedItem("message");
-      const text = input.value.trim();
-      if (!text) return;
-      input.value = "";
-      messages = [...messages, { role: "user", text }];
-      paint();
-      try {
-        const { reply } = await fallbackReply(text);
-        messages = [...messages, { role: "assistant", text: reply }];
-      } catch (err) {
-        messages = [...messages, { role: "assistant", text: "Error: Failed to get response from assistant." }];
-      }
-      paint();
-    });
-  };
-
-  paint();
-}
-
-renderFallback();
-
-const sdkSetup = {
-  assistantUi: "@assistant-ui/react",
-  assistantRuntime: "@assistant-ui/react-ai-sdk",
-  agentClient: "agents/react",
-  chatClient: "@cloudflare/ai-chat/react",
-  agent: "DocAssistant",
-  name: "landing",
-};
-
-window.googleWorkspaceAssistantSdkSetup = sdkSetup;
-
-async function loadAssistantUiAgentSdk() {
-  try {
-    const [assistantUi, assistantRuntime, agentsReact, cloudflareChat] = await Promise.all([
-      import("https://esm.sh/@assistant-ui/react?deps=react@19.2.3,react-dom@19.2.3"),
-      import("https://esm.sh/@assistant-ui/react-ai-sdk?deps=react@19.2.3,react-dom@19.2.3"),
-      import("https://esm.sh/agents@0.14.4/react?deps=react@19.2.3,react-dom@19.2.3"),
-      import("https://esm.sh/@cloudflare/ai-chat@0.8.4/react?deps=react@19.2.3,react-dom@19.2.3,agents@0.14.4"),
-    ]);
-
-    window.googleWorkspaceAssistantSdkModules = {
-      AssistantRuntimeProvider: assistantUi.AssistantRuntimeProvider,
-      Thread: assistantUi.Thread,
-      useChatRuntime: assistantRuntime.useChatRuntime,
-      useAgent: agentsReact.useAgent,
-      useAgentChat: cloudflareChat.useAgentChat,
-    };
-    root.dataset.sdk = "assistant-ui-agents-chat-sdk";
-  } catch (error) {
-    root.dataset.sdk = "preview-transport";
-    console.info("Assistant SDK modules are documented and configured; preview transport remains active.", error);
-  }
-}
-
-loadAssistantUiAgentSdk();
-
-</script>`;
+  return `<link rel="stylesheet" href="/assistant-ui-app.css" />
+<script type="module" src="/assistant-ui-app.js"></script>`;
 }
 
 export function serveLanding(c: Context): Response {
@@ -525,9 +432,9 @@ export function serveLanding(c: Context): Response {
       `<section class="hero">
         <div class="intro">
           <div>
-            <p class="eyebrow">Cloudflare Agent interface</p>
+            <p class="eyebrow">assistant-ui interface</p>
             <h1>Google Workspace MCP Assistant</h1>
-            <p class="lead">A single Cloudflare Worker for Google Docs automation, Drive operations, REST APIs, OpenAPI reference, and MCP clients. The chat surface bootstraps assistant-ui with Cloudflare Agents SDK and Chat SDK modules, then keeps a deploy-safe local preview transport active until a live Agent binding is attached.</p>
+            <p class="lead">A single Cloudflare Worker for Google Docs automation, Drive operations, REST APIs, OpenAPI reference, and MCP clients. The chat surface is a bundled assistant-ui React implementation using AssistantRuntimeProvider, ThreadPrimitive, MessagePrimitive, ComposerPrimitive, and an External Store runtime backed by this Worker's preview endpoint.</p>
             <div class="actions">
               <a class="button primary" href="/docs">Read docs</a>
               <a class="button secondary" href="/scaler">Open Scalar</a>
@@ -544,11 +451,13 @@ export function serveLanding(c: Context): Response {
           <div class="panel-header">
             <div>
               <h2>Assistant</h2>
-              <p class="eyebrow">assistant-ui + Agents SDK + Chat SDK</p>
+              <p class="eyebrow">assistant-ui + External Store runtime</p>
             </div>
             <span class="status">DocAssistant</span>
           </div>
-          <div id="assistant-root"></div>
+          <div id="assistant-root" data-sdk="assistant-ui-loading">
+            <div class="assistant-ui-loading">Loading assistant-ui chat...</div>
+          </div>
         </div>
       </section>`,
       assistantMountScript()
@@ -592,14 +501,18 @@ export function serveDocs(c: Context): Response {
 
           <section class="doc-panel" id="assistant">
             <h2>Assistant architecture</h2>
-            <p>The Worker retains the <code>DocAssistant</code> class export for Durable Object compatibility. The landing page bootstraps assistant-ui and the Cloudflare client hooks in the browser, while the local preview transport keeps the page usable until a live Agent binding is attached.</p>
-            <pre><code>import { useAgent } from "agents/react";
-import { useAgentChat } from "@cloudflare/ai-chat/react";
-import { AssistantRuntimeProvider, Thread } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+            <p>The Worker retains the <code>DocAssistant</code> class export for Durable Object compatibility. The landing page mounts a real assistant-ui runtime and thread component in React, using the Worker preview route as the current backend transport.</p>
+            <pre><code>import {
+  AssistantRuntimeProvider,
+  ThreadPrimitive,
+  useExternalStoreRuntime
+} from "@assistant-ui/react";
 
-const agent = useAgent({ agent: "DocAssistant", name: "landing" });
-const { messages, sendMessage, status } = useAgentChat({ agent });</code></pre>
+const runtime = useExternalStoreRuntime({
+  messages,
+  onNew,
+  suggestions
+});</code></pre>
           </section>
 
           <section class="doc-panel" id="mcp">
