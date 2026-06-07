@@ -463,8 +463,12 @@ function renderFallback(error) {
       input.value = "";
       messages = [...messages, { role: "user", text }];
       paint();
-      const { reply } = await fallbackReply(text);
-      messages = [...messages, { role: "assistant", text: reply }];
+      try {
+        const { reply } = await fallbackReply(text);
+        messages = [...messages, { role: "assistant", text: reply }];
+      } catch (err) {
+        messages = [...messages, { role: "assistant", text: "Error: Failed to get response from assistant." }];
+      }
       paint();
     });
   };
