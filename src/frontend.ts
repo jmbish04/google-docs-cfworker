@@ -33,12 +33,20 @@ function nav(active: ActivePage): string {
     .join("");
 }
 
-function shell(title: string, active: ActivePage, body: string, script = ""): string {
+function shell(
+  title: string,
+  active: ActivePage,
+  body: string,
+  script = "",
+  mainClass = "",
+  showHeader = true
+): string {
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <title>${escapeHtml(title)}</title>
   <style>
     :root {
@@ -132,27 +140,33 @@ function shell(title: string, active: ActivePage, body: string, script = ""): st
       padding: 34px 0 56px;
     }
 
-    .hero {
+    .chat-main {
+      width: min(1180px, calc(100vw - 32px));
+      min-height: calc(100vh - 64px);
       display: grid;
-      grid-template-columns: minmax(0, 0.95fr) minmax(420px, 1.05fr);
-      gap: 28px;
-      align-items: stretch;
-      min-height: calc(100vh - 170px);
+      padding: 0;
     }
 
-    .intro, .panel, .doc-panel {
+    .chat-main-full {
+      width: 100%;
+      min-height: 100vh;
+    }
+
+    .chat-main-full .chat-page,
+    .chat-main-full #assistant-root {
+      min-height: 100vh;
+    }
+
+    .chat-page {
+      min-height: calc(100vh - 64px);
+      display: grid;
+    }
+
+    .doc-panel {
       border: 1px solid var(--border);
       border-radius: 8px;
       background: var(--card);
       color: var(--card-foreground);
-    }
-
-    .intro {
-      padding: 30px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      gap: 32px;
     }
 
     .eyebrow {
@@ -224,74 +238,7 @@ function shell(title: string, active: ActivePage, body: string, script = ""): st
     .metric strong { display: block; font-size: 20px; }
     .metric span { color: var(--muted); font-size: 12px; }
 
-    .panel { min-height: 640px; overflow: hidden; }
-
-    .panel-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      border-bottom: 1px solid var(--border);
-      padding: 14px 16px;
-    }
-
-    .status {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      color: var(--muted);
-      font-size: 12px;
-    }
-
-    .status::before {
-      content: "";
-      width: 8px;
-      height: 8px;
-      border-radius: 999px;
-      background: #22c55e;
-    }
-
-    #assistant-root { min-height: 584px; }
-
-    .chat-shell {
-      display: grid;
-      grid-template-rows: 1fr auto;
-      min-height: 584px;
-    }
-
-    .messages {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      padding: 16px;
-      overflow: auto;
-      max-height: 500px;
-    }
-
-    .message {
-      width: min(86%, 520px);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 12px 13px;
-      background: var(--popover);
-      color: var(--foreground);
-      line-height: 1.5;
-      font-size: 14px;
-    }
-
-    .message.user {
-      align-self: flex-end;
-      background: var(--primary);
-      color: var(--primary-foreground);
-    }
-
-    .composer {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 10px;
-      border-top: 1px solid var(--border);
-      padding: 14px;
-    }
+    #assistant-root { min-height: calc(100vh - 64px); }
 
     input, textarea {
       width: 100%;
@@ -393,18 +340,17 @@ function shell(title: string, active: ActivePage, body: string, script = ""): st
     @media (max-width: 920px) {
       .header-inner { align-items: flex-start; flex-direction: column; padding: 14px 0; }
       .nav { justify-content: flex-start; }
-      .hero, .doc-layout { grid-template-columns: 1fr; }
-      .hero { min-height: 0; }
+      .doc-layout { grid-template-columns: 1fr; }
+      .chat-main { width: min(100vw - 20px, 1180px); }
       .toc { position: static; }
       .grid, .tools-list, .metrics { grid-template-columns: 1fr; }
       h1 { font-size: 44px; }
-      .panel { min-height: 560px; }
-      #assistant-root, .chat-shell { min-height: 504px; }
+      #assistant-root, .chat-page { min-height: calc(100vh - 146px); }
     }
   </style>
 </head>
 <body>
-  <header class="site-header">
+  ${showHeader ? `<header class="site-header">
     <div class="header-inner">
       <a class="brand" href="/">
         <strong>Google Workspace MCP</strong>
@@ -412,8 +358,8 @@ function shell(title: string, active: ActivePage, body: string, script = ""): st
       </a>
       <nav class="nav" aria-label="Primary navigation">${nav(active)}</nav>
     </div>
-  </header>
-  <main>${body}</main>
+  </header>` : ""}
+  <main${mainClass ? ` class="${mainClass}"` : ""}>${body}</main>
   ${script}
 </body>
 </html>`;
@@ -429,38 +375,14 @@ export function serveLanding(c: Context): Response {
     shell(
       "Google Workspace MCP Assistant",
       "home",
-      `<section class="hero">
-        <div class="intro">
-          <div>
-            <p class="eyebrow">assistant-ui interface</p>
-            <h1>Google Workspace MCP Assistant</h1>
-            <p class="lead">A single Cloudflare Worker for Google Docs automation, Drive operations, REST APIs, OpenAPI reference, and MCP clients. The chat surface is a bundled assistant-ui React implementation using AssistantRuntimeProvider, ThreadPrimitive, MessagePrimitive, ComposerPrimitive, and an External Store runtime backed by this Worker's preview endpoint.</p>
-            <div class="actions">
-              <a class="button primary" href="/docs">Read docs</a>
-              <a class="button secondary" href="/scaler">Open Scalar</a>
-              <a class="button secondary" href="/openapi.json">OpenAPI JSON</a>
-            </div>
-          </div>
-          <div class="metrics">
-            <div class="metric"><strong>${mcpTools.length}</strong><span>MCP tools</span></div>
-            <div class="metric"><strong>3</strong><span>API docs surfaces</span></div>
-            <div class="metric"><strong>1</strong><span>Unified Worker</span></div>
-          </div>
-        </div>
-        <div class="panel" aria-label="Assistant chat">
-          <div class="panel-header">
-            <div>
-              <h2>Assistant</h2>
-              <p class="eyebrow">assistant-ui + External Store runtime</p>
-            </div>
-            <span class="status">DocAssistant</span>
-          </div>
-          <div id="assistant-root" data-sdk="assistant-ui-loading">
-            <div class="assistant-ui-loading">Loading assistant-ui chat...</div>
-          </div>
+      `<section class="chat-page" aria-label="Assistant chat">
+        <div id="assistant-root" data-sdk="assistant-ui-loading">
+          <div class="assistant-ui-loading">Loading assistant-ui chat...</div>
         </div>
       </section>`,
-      assistantMountScript()
+      assistantMountScript(),
+      "chat-main chat-main-full",
+      false
     )
   );
 }
@@ -492,7 +414,17 @@ export function serveDocs(c: Context): Response {
           <section class="doc-panel" id="overview">
             <p class="eyebrow">Product documentation</p>
             <h1>Google Workspace MCP Server</h1>
-            <p class="lead">This Worker exposes Google Docs, Drive, and Sheets operations through an MCP server, WebSocket transport, and REST API. It is designed for agents that need document inspection, markdown insertion, batch edits, Drive search, and schema-driven API access from one Cloudflare deployment.</p>
+            <p class="lead">A single Cloudflare Worker for Google Docs automation, Drive operations, REST APIs, OpenAPI reference, and MCP clients. It is designed for agents that need document inspection, markdown insertion, batch edits, Drive search, and schema-driven API access from one Cloudflare deployment.</p>
+            <div class="actions">
+              <a class="button primary" href="/">Open assistant</a>
+              <a class="button secondary" href="/scaler">Open Scalar</a>
+              <a class="button secondary" href="/openapi.json">OpenAPI JSON</a>
+            </div>
+            <div class="metrics">
+              <div class="metric"><strong>${mcpTools.length}</strong><span>MCP tools</span></div>
+              <div class="metric"><strong>3</strong><span>API docs surfaces</span></div>
+              <div class="metric"><strong>1</strong><span>Unified Worker</span></div>
+            </div>
             <div class="grid">
               <div class="surface"><h3>Primary Worker routes</h3><p><code>/</code>, <code>/docs</code>, <code>/context</code>, <code>/health</code>, <code>/mcp</code>, <code>/mcp/ws</code>, <code>/v1</code></p></div>
               <div class="surface"><h3>Reference routes</h3><p><code>/openapi.json</code>, <code>/scalar</code>, <code>/swagger</code></p></div>
