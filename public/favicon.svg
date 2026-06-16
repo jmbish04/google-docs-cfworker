@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Google Workspace MCP">
+  <defs>
+    <linearGradient id="bg" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#38bdf8"/>
+      <stop offset=".36" stop-color="#6366f1"/>
+      <stop offset=".68" stop-color="#a855f7"/>
+      <stop offset="1" stop-color="#f97316"/>
+    </linearGradient>
+    <linearGradient id="doc" x1="20" y1="16" x2="44" y2="49" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#dbeafe"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#09090b"/>
+  <circle cx="18" cy="19" r="12" fill="#22c55e"/>
+  <circle cx="47" cy="18" r="10" fill="#facc15"/>
+  <circle cx="48" cy="47" r="12" fill="#fb7185"/>
+  <circle cx="17" cy="47" r="9" fill="#38bdf8"/>
+  <rect x="10" y="10" width="44" height="44" rx="12" fill="url(#bg)" opacity=".92"/>
+  <path d="M23 15h15l8 8v25a4 4 0 0 1-4 4H23a4 4 0 0 1-4-4V19a4 4 0 0 1 4-4Z" fill="url(#doc)"/>
+  <path d="M38 15v7a2 2 0 0 0 2 2h6" fill="#bfdbfe"/>
+  <path d="M26 31h13M26 37h13M26 43h8" stroke="#2563eb" stroke-width="3" stroke-linecap="round"/>
+  <path d="M17 23 10 32l7 9M47 23l7 9-7 9" stroke="#fafafa" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

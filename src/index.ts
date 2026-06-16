@@ -1,7 +1,14 @@
 import { Hono, type Context } from "hono";
 import { serveStatic } from "hono/cloudflare-workers";
 import { forwardLogin, forwardToken, handleCallback } from "./auth";
-import { buildDocAssistantReply } from "./assistant";
+import {
+  createAssistantThread,
+  getAssistantDb,
+  getAssistantMessages,
+  getAssistantThread,
+  listAssistantThreads,
+} from "./assistant-store";
+import { DocAssistant } from "./doc-assistant-agent";
 import docs from "./docs/routes";
 import { ui } from "./openapi/swagger-ui";
 import { serveOpenAPISpec } from "./openapi/spec";
@@ -9,6 +16,7 @@ import { serveScalarUI } from "./openapi/scalar";
 import { handleMcpRequest } from "./mcp/handler";
 import { handleWebSocket } from "./mcp/websocket";
 import { mcpTools } from "./mcp/tools";
+import { isWorkerApiKeyAuthorized } from "./secrets";
 import { serveDocs, serveLanding } from "./frontend";
 
 const app = new Hono<{ Bindings: CloudflareBindings }>();
@@ -21,17 +29,30 @@ function serveWorkerAsset(pathname: string) {
   };
 }
 
-export class DocAssistant {
-  constructor(
-    private readonly state: DurableObjectState,
-    private readonly env: CloudflareBindings
-  ) {}
+export { DocAssistant };
 
-  async fetch(): Promise<Response> {
-    return new Response("DocAssistant is retained for Durable Object compatibility.", {
-      status: 410,
-    });
+async function requireWorkerApiKey(c: Context<{ Bindings: CloudflareBindings }>): Promise<Response | null> {
+  try {
+    const auth = await isWorkerApiKeyAuthorized(c.req.raw, c.env);
+
+    if (!auth.ok) {
+      return c.json({ error: auth.message }, { status: 401 });
+    }
+
+    return null;
+  } catch (error) {
+    return c.json({ error: (error as Error).message }, { status: 500 });
   }
+}
+
+function docAssistantStub(env: CloudflareBindings, threadId: string): DurableObjectStub {
+  const namespace = (env as unknown as { DOC_ASSISTANT?: DurableObjectNamespace }).DOC_ASSISTANT;
+
+  if (!namespace) {
+    throw new Error("DOC_ASSISTANT binding is not configured");
+  }
+
+  return namespace.get(namespace.idFromName(threadId));
 }
 
 // Frontend routes
@@ -40,10 +61,53 @@ app.get("/docs", serveDocs);
 app.get("/docs/", serveDocs);
 app.get("/assistant-ui-app.css", serveWorkerAsset("/assistant-ui-app.css"));
 app.get("/assistant-ui-app.js", serveWorkerAsset("/assistant-ui-app.js"));
-app.post("/assistant/preview", async (c) => {
-  const body: { message?: string } = await c.req.json<{ message?: string }>().catch(() => ({}));
+app.get("/favicon.svg", serveWorkerAsset("/favicon.svg"));
+app.post("/assistant/preview", (c) =>
+  c.json({ error: "Preview mode was replaced by the D1-backed DocAssistant Agent." }, { status: 410 })
+);
+app.get("/assistant/threads", async (c) => {
+  const authResponse = await requireWorkerApiKey(c);
 
-  return c.json({ reply: buildDocAssistantReply(body.message?.trim() ?? "") });
+  if (authResponse) {
+    return authResponse;
+  }
+
+  const threads = await listAssistantThreads(getAssistantDb(c.env));
+  return c.json({ threads });
+});
+app.post("/assistant/threads", async (c) => {
+  const authResponse = await requireWorkerApiKey(c);
+
+  if (authResponse) {
+    return authResponse;
+  }
+
+  const body = (await c.req.json().catch(() => ({}))) as { title?: string };
+  const thread = await createAssistantThread(getAssistantDb(c.env), body.title?.trim() || "New thread");
+  return c.json({ thread });
+});
+app.get("/assistant/threads/:threadId/messages", async (c) => {
+  const authResponse = await requireWorkerApiKey(c);
+
+  if (authResponse) {
+    return authResponse;
+  }
+
+  const threadId = c.req.param("threadId");
+  const db = getAssistantDb(c.env);
+  const thread = await getAssistantThread(db, threadId);
+
+  if (!thread) {
+    return c.json({ error: "Thread not found" }, 404);
+  }
+
+  const messages = await getAssistantMessages(db, threadId);
+  return c.json({ thread, messages });
+});
+app.post("/assistant/threads/:threadId/messages", async (c) => {
+  const threadId = c.req.param("threadId");
+  const stub = docAssistantStub(c.env, threadId);
+  return stub.fetch(c.req.raw);
 });
 
 app.get("/context", (c) =>
@@ -52,9 +116,12 @@ app.get("/context", (c) =>
     runtime: "cloudflare-workers",
     assistant: {
       className: "DocAssistant",
-      previewRoute: "/assistant/preview",
-      chatSdkRoute: "/agents/doc-assistant/landing",
-      client: ["agents/react useAgent", "@cloudflare/ai-chat/react useAgentChat"],
+      model: c.env.WORKERS_AI_MODEL ?? "@cf/moonshotai/kimi-k2.6",
+      auth: "worker_api_key cookie or x-worker-api-key header",
+      threadsRoute: "/assistant/threads",
+      messagesRoute: "/assistant/threads/{threadId}/messages",
+      persistence: "D1 assistant_threads and assistant_messages",
+      tools: mcpTools.map((tool) => tool.name),
     },
     docs: {
       product: "/docs",
@@ -80,7 +147,7 @@ app.get("/health", (c) =>
     status: "ok",
     service: "google-workspace-mcp",
     version: "1.0.0",
-    features: ["REST API", "MCP Protocol", "WebSocket"],
+    features: ["REST API", "MCP Protocol", "WebSocket", "D1 assistant history", "Workers AI Agent"],
   })
 );
 

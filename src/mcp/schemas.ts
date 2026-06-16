@@ -6,7 +6,7 @@ export const jsonRpcRequestSchema = z.object({
   jsonrpc: z.literal('2.0'),
   id: z.union([z.string(), z.number(), z.null()]).optional(),
   method: z.string(),
-  params: z.record(z.any()).optional(),
+  params: z.record(z.string(), z.any()).optional(),
 });
 
 export type JsonRpcRequest = z.infer<typeof jsonRpcRequestSchema>;
@@ -28,7 +28,7 @@ export type JsonRpcResponse = z.infer<typeof jsonRpcResponseSchema>;
 // MCP Tool Call Schema
 export const mcpToolCallSchema = z.object({
   name: z.string(),
-  arguments: z.record(z.any()).optional(),
+  arguments: z.record(z.string(), z.any()).optional(),
 });
 
 export type McpToolCall = z.infer<typeof mcpToolCallSchema>;
@@ -46,7 +46,7 @@ export type McpContent = z.infer<typeof mcpContentSchema>;
 // MCP Tool Input Schema
 export const mcpToolInputSchema = z.object({
   type: z.literal('object'),
-  properties: z.record(z.any()),
+  properties: z.record(z.string(), z.any()),
   required: z.array(z.string()).optional(),
 });
 
